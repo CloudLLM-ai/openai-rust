@@ -5,7 +5,7 @@
 [![docs.rs](https://img.shields.io/docsrs/openai-rust)](https://docs.rs/openai-rust/latest/openai_rust/)
 
 
-This is an unofficial library to interact with the [Openai-API](https://platform.openai.com/docs/api-reference). The goal of this crate is to support the entire api while matching the offical documentation as closely as possible.
+This is an unofficial library to interact with the [Openai-API](https://platform.openai.com/docs/api-reference). The goal of this crate is to support the entire api while matching the official documentation as closely as possible.
 
 #### Current features:
 - [x] [Listing models](https://platform.openai.com/docs/api-reference/models/list)
