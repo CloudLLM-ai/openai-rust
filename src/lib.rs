@@ -7,7 +7,7 @@ use reqwest;
 pub extern crate futures_util;
 
 lazy_static! {
-    static ref BASE_URL: reqwest::Url =
+    static ref DEFAULT_BASE_URL: reqwest::Url =
         reqwest::Url::parse("https://api.openai.com/v1/models").unwrap();
 }
 
@@ -15,6 +15,7 @@ lazy_static! {
 pub struct Client {
     req_client: reqwest::Client,
     key: String,
+    base_url : reqwest::Url
 }
 
 pub mod models;
@@ -32,6 +33,7 @@ impl Client {
         Client {
             req_client,
             key: api_key.to_owned(),
+            base_url: DEFAULT_BASE_URL.clone()
         }
     }
 
@@ -40,6 +42,26 @@ impl Client {
         Client {
             req_client,
             key: api_key.to_owned(),
+            base_url: DEFAULT_BASE_URL.clone()
+        }
+    }
+
+    // Build a client with a custom base url. The default is `https://api.openai.com/v1/models`
+    pub fn new_with_base_url(api_key: &str, base_url : &str) -> Client {
+        let req_client = reqwest::ClientBuilder::new().build().unwrap();
+        let base_url = reqwest::Url::parse(base_url).unwrap();
+        Client {
+            req_client,
+            key: api_key.to_owned(),
+            base_url
+        }
+    }
+
+    pub fn new_with_client_and_base_url(api_key: &str, req_client: reqwest::Client, base_url : &str) -> Client {
+        Client {
+            req_client,
+            key: api_key.to_owned(),
+            base_url: reqwest::Url::parse(base_url).unwrap()
         }
     }
 
@@ -55,7 +77,7 @@ impl Client {
     ///
     /// See <https://platform.openai.com/docs/api-reference/models/list>.
     pub async fn list_models(&self) -> Result<Vec<models::Model>, anyhow::Error> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/models");
 
         let res = self
@@ -95,7 +117,7 @@ impl Client {
         &self,
         args: chat::ChatArguments,
     ) -> Result<chat::ChatCompletion, anyhow::Error> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/chat/completions");
 
         let res = self
@@ -144,7 +166,7 @@ impl Client {
         &self,
         args: chat::ChatArguments,
     ) -> Result<chat::stream::ChatCompletionChunkStream> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/chat/completions");
 
         // Enable streaming
@@ -184,7 +206,7 @@ impl Client {
         &self,
         args: completions::CompletionArguments,
     ) -> Result<completions::CompletionResponse> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/completions");
 
         let res = self
@@ -219,7 +241,7 @@ impl Client {
     ///
     #[deprecated = "Use the chat api instead"]
     pub async fn create_edit(&self, args: edits::EditArguments) -> Result<edits::EditResponse> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/edits");
 
         let res = self
@@ -256,7 +278,7 @@ impl Client {
         &self,
         args: embeddings::EmbeddingsArguments,
     ) -> Result<embeddings::EmbeddingsResponse> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/embeddings");
 
         let res = self
@@ -279,7 +301,7 @@ impl Client {
         &self,
         args: images::ImageArguments,
     ) -> Result<Vec<String>> {
-        let mut url = BASE_URL.clone();
+        let mut url = self.base_url.clone();
         url.set_path("/v1/images/generations");
 
         let res = self

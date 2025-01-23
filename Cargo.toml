@@ -1,10 +1,10 @@
 [package]
 name = "openai-rust"
-version = "1.5.1"
+version = "1.5.3"
 edition = "2021"
-authors = ["LevitatingBusinessMan"]
+authors = ["gubatron","LevitatingBusinessMan"]
 description = "An unofficial library for the OpenAI API"
-repository = "https://github.com/LevitatingBusinessMan/openai-rust"
+repository = "https://github.com/gubatron/openai-rust"
 keywords = ["openai", "gpt", "library", "api", "async"]
 documentation = "https://docs.rs/openai-rust"
 categories = ["api-bindings"]

@@ -10,7 +10,19 @@ lazy_static! {
 #[tokio::test]
 pub async fn list_models() {
     let c = openai_rust::Client::new(&KEY);
-    c.list_models().await.unwrap();
+    let models_vec = c.list_models().await.unwrap();
+    assert!(models_vec.len() > 0);
+
+    let c_openai_manually = openai_rust::Client::new_with_base_url(&KEY, "https://api.openai.com");
+    let models_vec = c_openai_manually.list_models().await.unwrap();
+    assert!(models_vec.len() > 0);
+
+    let c_local_ollama = openai_rust::Client::new_with_base_url(&KEY, "http://localhost:11434");
+    let models_vec = c_local_ollama.list_models().await.unwrap();
+    assert!(models_vec.len() > 0);
+    models_vec.iter().for_each(|m| {
+        println!("Local Ollama Model: {}", m.id);
+    });
 }
 
 #[tokio::test]
