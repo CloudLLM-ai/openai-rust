@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// See <https://platform.openai.com/docs/api-reference/embeddings/create>.
 ///
 /// ```
-/// openai_rust::embeddings::EmbeddingsArguments::new(
+/// openai_rust2::embeddings::EmbeddingsArguments::new(
 ///     "text-embedding-ada-002",
 ///     "The food was delicious and the waiter...".to_owned(),
 /// );

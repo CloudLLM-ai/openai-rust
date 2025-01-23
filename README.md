@@ -22,7 +22,8 @@ This is an unofficial library to interact with the [Openai-API](https://platform
 
 ### Example usage
 ```rust ignore
-// Here we will use the chat completion endpoint
+// Here we will use the chat completion endpoint connecting to openAI's default base URL
+use openai_rust2 as openai_rust; // since this is a fork of openai_rust
 let client = openai_rust::Client::new(&std::env::var("OPENAI_API_KEY").unwrap());
 let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
     openai_rust::chat::Message {
@@ -32,6 +33,15 @@ let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
 ]);
 let res = client.create_chat(args).await.unwrap();
 println!("{}", res);
+```
+
+Here another example connecting to a local LLM server (Ollama's base URL)
+```rust ignore
+use openai_rust2 as openai_rust; // since this is a fork of openai_rust
+let client = openai_rust::Client::new_with_base_url(
+    "",
+    "http://localhost:8000"
+);
 ```
 
 You can run this code as an example with `OPENAI_API_KEY=(your key) cargo run --example chat`.

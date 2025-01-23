@@ -1,6 +1,6 @@
-use futures_util::{StreamExt, FutureExt};
+use futures_util::StreamExt;
 use lazy_static::lazy_static;
-use openai_rust;
+use openai_rust2 as openai_rust;
 use std::env::var;
 
 lazy_static! {
@@ -17,7 +17,7 @@ pub async fn list_models() {
     let models_vec = c_openai_manually.list_models().await.unwrap();
     assert!(models_vec.len() > 0);
 
-    let c_local_ollama = openai_rust::Client::new_with_base_url(&KEY, "http://localhost:11434");
+    let c_local_ollama = openai_rust::Client::new_with_base_url("", "http://localhost:11434");
     let models_vec = c_local_ollama.list_models().await.unwrap();
     assert!(models_vec.len() > 0);
     models_vec.iter().for_each(|m| {

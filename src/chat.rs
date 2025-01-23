@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 /// See <https://platform.openai.com/docs/api-reference/chat/create>.
 ///
 /// ```
-/// let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
-///     openai_rust::chat::Message {
+/// let args = openai_rust2::chat::ChatArguments::new("gpt-3.5-turbo", vec![
+///     openai_rust2::chat::Message {
 ///         role: "user".to_owned(),
 ///         content: "Hello GPT!".to_owned(),
 ///     }
@@ -115,7 +115,7 @@ impl ChatArguments {
 /// #   \"total_tokens\": 21
 /// #  }
 /// # }";
-/// # let res = serde_json::from_str::<openai_rust::chat::ChatCompletion>(json).unwrap();
+/// # let res = serde_json::from_str::<openai_rust2::chat::ChatCompletion>(json).unwrap();
 /// let msg = &res.choices[0].message.content;
 /// // or
 /// let msg = res.to_string();
@@ -165,7 +165,7 @@ pub mod stream {
     /// #   }
     /// # ]
     /// # }";
-    /// # let res = serde_json::from_str::<openai_rust::chat::stream::ChatCompletionChunk>(json).unwrap();
+    /// # let res = serde_json::from_str::<openai_rust2::chat::stream::ChatCompletionChunk>(json).unwrap();
     /// let msg = &res.choices[0].delta.content;
     /// // or
     /// let msg = res.to_string();

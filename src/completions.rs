@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// See <https://platform.openai.com/docs/api-reference/completions/create>.
 ///
 /// ```
-/// let args = openai_rust::completions::CompletionArguments::new(
+/// let args = openai_rust2::completions::CompletionArguments::new(
 ///     "text-davinci-003",
 ///     "The quick brown fox".to_owned()
 /// );
@@ -165,7 +165,7 @@ impl CompletionArguments {
 /// #    \"total_tokens\": 12
 /// #  }
 /// # }";
-/// # let res = serde_json::from_str::<openai_rust::completions::CompletionResponse>(json).unwrap();
+/// # let res = serde_json::from_str::<openai_rust2::completions::CompletionResponse>(json).unwrap();
 /// let text = &res.choices[0].text;
 /// // or
 /// let text = res.to_string();
