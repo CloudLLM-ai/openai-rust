@@ -39,8 +39,8 @@ Here another example connecting to a local LLM server (Ollama's base URL)
 ```rust ignore
 use openai_rust2 as openai_rust; // since this is a fork of openai_rust
 let client = openai_rust::Client::new_with_base_url(
-    "",
-    "http://localhost:8000"
+    "", // no need for an API key when connecting to a default ollama instance locally
+    "http://localhost:11434"
 );
 ```
 
