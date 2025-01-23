@@ -1,4 +1,4 @@
-# openai-rust
+# openai-rust2
 
 [![Test Status](https://github.com/LevitatingBusinessMan/openai-rust/workflows/Build/badge.svg)](https://github.com/LevitatingBusinessMan/openai-rust/actions)
 [![Crates.io](https://img.shields.io/crates/v/openai-rust)](https://crates.io/crates/openai-rust)
