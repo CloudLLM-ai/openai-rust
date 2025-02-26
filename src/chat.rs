@@ -122,6 +122,8 @@ impl ChatArguments {
 /// ```
 #[derive(Deserialize, Debug, Clone)]
 pub struct ChatCompletion {
+    // Make id optional
+    #[serde(default)]
     pub id: String,
     pub created: u32,
     pub choices: Vec<Choice>,
@@ -142,8 +144,8 @@ pub mod stream {
     use futures_util::Stream;
     use serde::Deserialize;
     use std::pin::Pin;
-    use std::task::Poll;
     use std::str;
+    use std::task::Poll;
 
     /// This is the partial chat result received when streaming.
     ///
@@ -211,7 +213,6 @@ pub mod stream {
     }
 
     impl ChatCompletionChunkStream {
-
         pub(crate) fn new(stream: Pin<Box<dyn Stream<Item = reqwest::Result<Bytes>>>>) -> Self {
             Self {
                 byte_stream: stream,
@@ -221,7 +222,10 @@ pub mod stream {
 
         /// If possible, returns a the first deserialized chunk
         /// from the buffer.
-        fn deserialize_buf(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Option<anyhow::Result<ChatCompletionChunk>> {
+        fn deserialize_buf(
+            self: Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> Option<anyhow::Result<ChatCompletionChunk>> {
             // let's take the first chunk
             let bufclone = self.buf.clone();
             let mut chunks = bufclone.split("\n\n").peekable();
@@ -250,13 +254,13 @@ pub mod stream {
 
                                 Some(
                                     serde_json::from_str::<ChatCompletionChunk>(&chunk)
-                                    .map_err(|e| anyhow::anyhow!(e))
+                                        .map_err(|e| anyhow::anyhow!(e)),
                                 )
                             }
-                        },
+                        }
                         None => None,
                     }
-                },
+                }
                 None => None,
             }
         }
@@ -265,12 +269,14 @@ pub mod stream {
     impl Stream for ChatCompletionChunkStream {
         type Item = anyhow::Result<ChatCompletionChunk>;
 
-        fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Option<Self::Item>> {
-
+        fn poll_next(
+            mut self: Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> Poll<Option<Self::Item>> {
             // Possibly fetch a chunk from the buffer
             match self.as_mut().deserialize_buf(cx) {
                 Some(chunk) => return Poll::Ready(Some(chunk)),
-                None => {},
+                None => {}
             };
 
             match self.byte_stream.as_mut().poll_next(cx) {
@@ -288,9 +294,9 @@ pub mod stream {
                                     // task again. If we don't this task will get stuck.
                                     cx.waker().wake_by_ref();
                                     Poll::Pending
-                                },
+                                }
                             }
-                        },
+                        }
                         Err(e) => Poll::Ready(Some(Err(e.into()))),
                     },
                     // Stream terminated

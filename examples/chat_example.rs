@@ -11,6 +11,6 @@ async fn main() {
             content: "Hello GPT!".to_owned(),
         }],
     );
-    let res = client.create_chat(args).await.unwrap();
+    let res = client.create_chat(args, None).await.unwrap();
     println!("{}", res);
 }

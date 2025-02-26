@@ -10,15 +10,15 @@ lazy_static! {
 #[tokio::test]
 pub async fn list_models() {
     let c = openai_rust::Client::new(&KEY);
-    let models_vec = c.list_models().await.unwrap();
+    let models_vec = c.list_models(None).await.unwrap();
     assert!(models_vec.len() > 0);
 
     let c_openai_manually = openai_rust::Client::new_with_base_url(&KEY, "https://api.openai.com");
-    let models_vec = c_openai_manually.list_models().await.unwrap();
+    let models_vec = c_openai_manually.list_models(None).await.unwrap();
     assert!(models_vec.len() > 0);
 
     let c_local_ollama = openai_rust::Client::new_with_base_url("", "http://localhost:11434");
-    let models_vec = c_local_ollama.list_models().await.unwrap();
+    let models_vec = c_local_ollama.list_models(None).await.unwrap();
     assert!(models_vec.len() > 0);
     models_vec.iter().for_each(|m| {
         println!("Local Ollama Model: {}", m.id);
@@ -35,7 +35,7 @@ pub async fn create_chat() {
             content: "Hello GPT!".to_owned(),
         }],
     );
-    c.create_chat(args).await.unwrap();
+    c.create_chat(args, None).await.unwrap();
 }
 
 #[tokio::test]
@@ -49,7 +49,7 @@ pub async fn create_chat_stream() {
         }],
     );
 
-    c.create_chat_stream(args)
+    c.create_chat_stream(args, None)
         .await
         .unwrap()
         .collect::<Vec<_>>()
@@ -63,7 +63,7 @@ pub async fn create_completion() {
         "text-davinci-003",
         "The quick brown fox".to_owned(),
     );
-    c.create_completion(args).await.unwrap();
+    c.create_completion(args, None).await.unwrap();
 }
 
 #[tokio::test]
@@ -74,18 +74,7 @@ pub async fn create_completion_logprobs() {
         "The quick brown fox".to_owned(),
     );
     args.logprobs = Some(1);
-    c.create_completion(args).await.unwrap();
-}
-
-#[tokio::test]
-pub async fn create_edit() {
-    let c = openai_rust::Client::new(&KEY);
-    let args = openai_rust::edits::EditArguments::new(
-        "text-davinci-edit-001",
-        "The quick brown fox".to_owned(),
-        "Complete this sentence.".to_owned(),
-    );
-    c.create_edit(args).await.unwrap();
+    c.create_completion(args, None).await.unwrap();
 }
 
 #[tokio::test]
@@ -95,7 +84,7 @@ pub async fn create_embeddings() {
         "text-embedding-ada-002",
         "The food was delicious and the waiter...".to_owned(),
     );
-    c.create_embeddings(args).await.unwrap();
+    c.create_embeddings(args, None).await.unwrap();
 }
 
 #[tokio::test]
@@ -106,12 +95,12 @@ pub async fn external_client() {
         .build()
         .unwrap();
     let c = openai_rust::Client::new_with_client(&KEY, req_c);
-    c.list_models().await.unwrap();
+    c.list_models(None).await.unwrap();
 }
 
 #[tokio::test]
 pub async fn create_image() {
     let c = openai_rust::Client::new(&KEY);
     let args = openai_rust::images::ImageArguments::new("Lovecraftian Dagon");
-    c.create_image(args).await.unwrap();
+    c.create_image(args, None).await.unwrap();
 }

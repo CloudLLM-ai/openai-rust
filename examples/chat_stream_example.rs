@@ -13,7 +13,7 @@ async fn main() {
             content: "Hello GPT!".to_owned(),
         }],
     );
-    let mut res = client.create_chat_stream(args).await.unwrap();
+    let mut res = client.create_chat_stream(args, None).await.unwrap();
     while let Some(chunk) = res.next().await {
         print!("{}", chunk.unwrap());
         std::io::stdout().flush().unwrap();

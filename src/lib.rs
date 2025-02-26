@@ -15,15 +15,15 @@ lazy_static! {
 pub struct Client {
     req_client: reqwest::Client,
     key: String,
-    base_url : reqwest::Url
+    base_url: reqwest::Url,
 }
 
-pub mod models;
 pub mod chat;
 pub mod completions;
 pub mod edits;
 pub mod embeddings;
 pub mod images;
+pub mod models;
 
 impl Client {
     /// Create a new client.
@@ -33,7 +33,7 @@ impl Client {
         Client {
             req_client,
             key: api_key.to_owned(),
-            base_url: DEFAULT_BASE_URL.clone()
+            base_url: DEFAULT_BASE_URL.clone(),
         }
     }
 
@@ -42,43 +42,51 @@ impl Client {
         Client {
             req_client,
             key: api_key.to_owned(),
-            base_url: DEFAULT_BASE_URL.clone()
+            base_url: DEFAULT_BASE_URL.clone(),
         }
     }
 
     // Build a client with a custom base url. The default is `https://api.openai.com/v1/models`
-    pub fn new_with_base_url(api_key: &str, base_url : &str) -> Client {
+    pub fn new_with_base_url(api_key: &str, base_url: &str) -> Client {
         let req_client = reqwest::ClientBuilder::new().build().unwrap();
         let base_url = reqwest::Url::parse(base_url).unwrap();
         Client {
             req_client,
             key: api_key.to_owned(),
-            base_url
+            base_url,
         }
     }
 
-    pub fn new_with_client_and_base_url(api_key: &str, req_client: reqwest::Client, base_url : &str) -> Client {
+    pub fn new_with_client_and_base_url(
+        api_key: &str,
+        req_client: reqwest::Client,
+        base_url: &str,
+    ) -> Client {
         Client {
             req_client,
             key: api_key.to_owned(),
-            base_url: reqwest::Url::parse(base_url).unwrap()
+            base_url: reqwest::Url::parse(base_url).unwrap(),
         }
     }
 
     /// List and describe the various models available in the API. You can refer to the [Models](https://platform.openai.com/docs/models) documentation to understand what models are available and the differences between them.
     ///
-    /// ```no_run
+    /// ```
+    /// # use openai_rust2 as openai_rust;
     /// # let api_key = "";
     /// # tokio_test::block_on(async {
     /// let client = openai_rust::Client::new(api_key);
-    /// let models = client.list_models().await.unwrap();
+    /// let models = client.list_models(None).await.unwrap();
     /// # })
     /// ```
     ///
     /// See <https://platform.openai.com/docs/api-reference/models/list>.
-    pub async fn list_models(&self) -> Result<Vec<models::Model>, anyhow::Error> {
+    pub async fn list_models(
+        &self,
+        opt_url_path: Option<String>,
+    ) -> Result<Vec<models::Model>, anyhow::Error> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/models");
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/models")));
 
         let res = self
             .req_client
@@ -97,10 +105,10 @@ impl Client {
     /// Given a list of messages comprising a conversation, the model will return a response.
     ///
     /// See <https://platform.openai.com/docs/api-reference/chat>.
-    /// ```no_run
+    /// ```
     /// # use tokio_test;
     /// # tokio_test::block_on(async {
-    /// # use openai_rust;
+    /// # use openai_rust2 as openai_rust;
     /// # let api_key = "";
     /// let client = openai_rust::Client::new(api_key);
     /// let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
@@ -109,39 +117,17 @@ impl Client {
     ///        content: "Hello GPT!".to_owned(),
     ///    }
     /// ]);
-    /// let res = client.create_chat(args).await.unwrap();
+    /// let res = client.create_chat(args, None).await.unwrap();
     /// println!("{}", res.choices[0].message.content);
     /// # })
     /// ```
     pub async fn create_chat(
         &self,
         args: chat::ChatArguments,
+        opt_url_path: Option<String>,
     ) -> Result<chat::ChatCompletion, anyhow::Error> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/chat/completions");
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
-    }
-
-    pub async fn create_chat_with_path(
-        &self,
-        args: chat::ChatArguments,
-        path : &str
-    ) -> Result<chat::ChatCompletion, anyhow::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path(path);
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/chat/completions")));
 
         let res = self
             .req_client
@@ -164,10 +150,10 @@ impl Client {
     ///
     /// This method will return a stream of [chat::stream::ChatCompletionChunk]s. Use with [futures_util::StreamExt::next].
     ///
-    /// ```no_run
+    /// ```
     /// # use tokio_test;
     /// # tokio_test::block_on(async {
-    /// # use openai_rust;
+    /// # use openai_rust2 as openai_rust;
     /// # use std::io::Write;
     /// # let client = openai_rust::Client::new("");
     /// # let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
@@ -177,7 +163,7 @@ impl Client {
     /// #    }
     /// # ]);
     /// use openai_rust::futures_util::StreamExt;
-    /// let mut res = client.create_chat_stream(args).await.unwrap();
+    /// let mut res = client.create_chat_stream(args, None).await.unwrap();
     /// while let Some(chunk) = res.next().await {
     ///     print!("{}", chunk.unwrap());
     ///     std::io::stdout().flush().unwrap();
@@ -188,9 +174,10 @@ impl Client {
     pub async fn create_chat_stream(
         &self,
         args: chat::ChatArguments,
+        opt_url_path: Option<String>,
     ) -> Result<chat::stream::ChatCompletionChunkStream> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/chat/completions");
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/chat/completions")));
 
         // Enable streaming
         let mut args = args;
@@ -205,7 +192,9 @@ impl Client {
             .await?;
 
         if res.status() == 200 {
-            Ok(chat::stream::ChatCompletionChunkStream::new(Box::pin(res.bytes_stream())))
+            Ok(chat::stream::ChatCompletionChunkStream::new(Box::pin(
+                res.bytes_stream(),
+            )))
         } else {
             Err(anyhow!(res.text().await?))
         }
@@ -215,57 +204,24 @@ impl Client {
     ///
     /// See <https://platform.openai.com/docs/api-reference/completions>
     ///
-    /// ```no_run
+    /// ```
+    /// # use openai_rust2 as openai_rust;
     /// # use openai_rust::*;
     /// # use tokio_test;
     /// # tokio_test::block_on(async {
     /// # let api_key = "";
-    /// let c = openai_rust::Client::new(api_key);
-    /// let args = openai_rust::completions::CompletionArguments::new("text-davinci-003", "The quick brown fox".to_owned());
-    /// println!("{}", c.create_completion(args).await.unwrap().choices[0].text);
+    /// let c = Client::new(api_key);
+    /// let args = completions::CompletionArguments::new("text-davinci-003", "The quick brown fox".to_owned());
+    /// println!("{}", c.create_completion(args, None).await.unwrap().choices[0].text);
     /// # })
     /// ```
     pub async fn create_completion(
         &self,
         args: completions::CompletionArguments,
+        opt_url_path: Option<String>,
     ) -> Result<completions::CompletionResponse> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/completions");
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
-    }
-
-    /// Given a prompt and an instruction, the model will return an edited version of the prompt.
-    ///
-    /// See <https://platform.openai.com/docs/api-reference/edits>
-    ///
-    /// ```no_run
-    /// # use openai_rust;
-    /// # use tokio_test;
-    /// # tokio_test::block_on(async {
-    /// # let api_key = "";
-    /// let c = openai_rust::Client::new(api_key);
-    /// let args = openai_rust::edits::EditArguments::new("text-davinci-edit-001", "The quick brown fox".to_owned(), "Complete this sentence.".to_owned());
-    /// println!("{}", c.create_edit(args).await.unwrap().to_string());
-    /// # })
-    /// ```
-    ///
-    #[deprecated = "Use the chat api instead"]
-    pub async fn create_edit(&self, args: edits::EditArguments) -> Result<edits::EditResponse> {
-        let mut url = self.base_url.clone();
-        url.set_path("/v1/edits");
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/completions")));
 
         let res = self
             .req_client
@@ -286,23 +242,24 @@ impl Client {
     ///
     /// See <https://platform.openai.com/docs/api-reference/embeddings>
     ///
-    /// ```no_run
-    /// # use openai_rust;
+    /// ```
+    /// # use openai_rust2 as openai_rust;
     /// # use tokio_test;
     /// # tokio_test::block_on(async {
     /// # let api_key = "";
     /// let c = openai_rust::Client::new(api_key);
     /// let args = openai_rust::embeddings::EmbeddingsArguments::new("text-embedding-ada-002", "The food was delicious and the waiter...".to_owned());
-    /// println!("{:?}", c.create_embeddings(args).await.unwrap().data);
+    /// println!("{:?}", c.create_embeddings(args, None).await.unwrap().data);
     /// # })
     /// ```
     ///
     pub async fn create_embeddings(
         &self,
         args: embeddings::EmbeddingsArguments,
+        opt_url_path: Option<String>,
     ) -> Result<embeddings::EmbeddingsResponse> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/embeddings");
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/embeddings")));
 
         let res = self
             .req_client
@@ -323,9 +280,10 @@ impl Client {
     pub async fn create_image(
         &self,
         args: images::ImageArguments,
+        opt_url_path: Option<String>,
     ) -> Result<Vec<String>> {
         let mut url = self.base_url.clone();
-        url.set_path("/v1/images/generations");
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/images/generations")));
 
         let res = self
             .req_client
@@ -336,12 +294,16 @@ impl Client {
             .await?;
 
         if res.status() == 200 {
-            Ok(res.json::<images::ImageResponse>().await?.data.iter().map(|o|
-                match o {
+            Ok(res
+                .json::<images::ImageResponse>()
+                .await?
+                .data
+                .iter()
+                .map(|o| match o {
                     images::ImageObject::Url(s) => s.to_string(),
                     images::ImageObject::Base64JSON(s) => s.to_string(),
-                }
-            ).collect())
+                })
+                .collect())
         } else {
             Err(anyhow!(res.text().await?))
         }
