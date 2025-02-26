@@ -135,6 +135,29 @@ impl Client {
         }
     }
 
+    pub async fn create_chat_with_path(
+        &self,
+        args: chat::ChatArguments,
+        path : &str
+    ) -> Result<chat::ChatCompletion, anyhow::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path(path);
+
+        let res = self
+            .req_client
+            .post(url)
+            .bearer_auth(&self.key)
+            .json(&args)
+            .send()
+            .await?;
+
+        if res.status() == 200 {
+            Ok(res.json().await?)
+        } else {
+            Err(anyhow!(res.text().await?))
+        }
+    }
+
     /// Like [Client::create_chat] but with streaming.
     ///
     /// See <https://platform.openai.com/docs/api-reference/chat>.
