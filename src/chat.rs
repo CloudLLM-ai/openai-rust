@@ -124,8 +124,12 @@ impl ChatArguments {
 pub struct ChatCompletion {
     // Make id optional
     #[serde(default)]
-    pub id: String,
+    pub id: Option<String>,
     pub created: u32,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub object: Option<String>,
     pub choices: Vec<Choice>,
     pub usage: Usage,
 }
@@ -308,7 +312,7 @@ pub mod stream {
     }
 }
 
-/// Infomration about the tokens used by [ChatCompletion].
+/// Information about the tokens used by [ChatCompletion].
 #[derive(Deserialize, Debug, Clone)]
 pub struct Usage {
     pub prompt_tokens: u32,
@@ -319,7 +323,8 @@ pub struct Usage {
 /// Completion choices from [ChatCompletion].
 #[derive(Deserialize, Debug, Clone)]
 pub struct Choice {
-    pub index: u32,
+    #[serde(default)]
+    pub index: Option<u32>,
     pub message: Message,
     pub finish_reason: String,
 }
