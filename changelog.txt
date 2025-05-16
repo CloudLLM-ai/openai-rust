@@ -1,0 +1,15 @@
+1.5.9 - 2025-05-16
+ - new: support for gpt-image-1 model in image generation via /v1/images/generations endpoint
+ - new: Base64 decoding in tests.rs to save generated images to generated_image.png
+ - new: base64 crate (version 0.22.1) as a dependency for decoding image data
+ - new: chat::ImageGeneration struct and field in chat.rs for future chat-based image generation support
+ - new: Detailed prompt in create_image test for high-quality, photorealistic output
+ - Removed response_format parameter from ImageArguments in images.rs, as gpt-image-1 always returns base64-encoded images
+ - Updated create_image in lib.rs to use gpt-image-1 with auto quality and no response_format
+ - Changed size field in ImageArguments to Option<String> to support "1024x1024", "1024x1536", and "1536x1024"
+ - Updated test models in tests.rs from text-davinci-003 to gpt-3.5-turbo-instruct for compatibility
+ - Bumped dependency versions: anyhow to 1.0.98, reqwest to 0.12.12, serde to 1.0.218
+ - Updated repository URL in Cargo.toml to https://github.com/cloudllm-ai/openai-rust
+ - Improved documentation and removed outdated comments in chat.rs, images.rs, and lib.rs
+ - Notes: gpt-image-1 requires organization verification (government ID and facial verification). Ensure your OpenAI account is verified
+ - Run client.list_models(None).await to confirm gpt-image-1 availability
