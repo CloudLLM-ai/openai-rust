@@ -1,6 +1,6 @@
 // Here we will use the chat completion endpoint
-use openai_rust2 as openai_rust;
 use openai_rust::futures_util::StreamExt;
+use openai_rust2 as openai_rust;
 use std::io::Write;
 
 #[tokio::main]

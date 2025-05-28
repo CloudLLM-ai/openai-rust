@@ -8,8 +8,8 @@ pub enum ResponseFormat {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ImageGeneration {
-    pub quality: Option<String>, // e.g., "standard", "hd"
-    pub size: Option<String>,    // e.g., "1024x1024"
+    pub quality: Option<String>,       // e.g., "standard", "hd"
+    pub size: Option<String>,          // e.g., "1024x1024"
     pub output_format: Option<String>, // e.g., "base64", "url"
 }
 
@@ -39,6 +39,8 @@ pub struct ChatArguments {
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_generation: Option<ImageGeneration>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_parameters: Option<SearchParameters>, // Grok-specific search parameter (for now)
 }
 
 impl ChatArguments {
@@ -57,7 +59,13 @@ impl ChatArguments {
             user: None,
             response_format: None,
             image_generation: None,
+            search_parameters: None, // Grok-specific search parameter (for now)
         }
+    }
+
+    pub fn with_search_parameters(mut self, params: SearchParameters) -> Self {
+        self.search_parameters = Some(params);
+        self
     }
 }
 
@@ -144,27 +152,25 @@ pub mod stream {
             let second = chunks.peek();
 
             match first {
-                Some(first) => {
-                    match first.strip_prefix("data: ") {
-                        Some(chunk) => {
-                            if !chunk.ends_with("}") {
-                                None
-                            } else {
-                                if let Some(second) = second {
-                                    if second.ends_with("}") {
-                                        cx.waker().wake_by_ref();
-                                    }
+                Some(first) => match first.strip_prefix("data: ") {
+                    Some(chunk) => {
+                        if !chunk.ends_with("}") {
+                            None
+                        } else {
+                            if let Some(second) = second {
+                                if second.ends_with("}") {
+                                    cx.waker().wake_by_ref();
                                 }
-                                self.get_mut().buf = chunks.collect::<Vec<_>>().join("\n\n");
-                                Some(
-                                    serde_json::from_str::<ChatCompletionChunk>(&chunk)
-                                        .map_err(|e| anyhow::anyhow!(e)),
-                                )
                             }
+                            self.get_mut().buf = chunks.collect::<Vec<_>>().join("\n\n");
+                            Some(
+                                serde_json::from_str::<ChatCompletionChunk>(&chunk)
+                                    .map_err(|e| anyhow::anyhow!(e)),
+                            )
                         }
-                        None => None,
                     }
-                }
+                    None => None,
+                },
                 None => None,
             }
         }
@@ -231,4 +237,46 @@ pub enum Role {
     System,
     Assistant,
     User,
+}
+
+// Grok-specific search parameters
+#[derive(Serialize, Debug, Clone)]
+pub struct SearchParameters {
+    pub mode: SearchMode, // "off", "on", "auto" (Live search is enabled but model decides when to use it)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_citations: Option<bool>,
+    /// Inclusive yyyy-mm-dd
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from_date: Option<String>,
+    /// Inclusive upper‐bound yyyy-mm-dd
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub to_date: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")] // <-- "On" → "on", etc.
+pub enum SearchMode {
+    On,
+    Off,
+    Auto,
+}
+
+impl SearchParameters {
+    pub fn new(mode: SearchMode) -> Self {
+        Self {
+            mode,
+            return_citations: None,
+            from_date: None,
+            to_date: None,
+        }
+    }
+    pub fn with_citations(mut self, yes: bool) -> Self {
+        self.return_citations = Some(yes);
+        self
+    }
+    pub fn with_date_range_str(mut self, from: impl Into<String>, to: impl Into<String>) -> Self {
+        self.from_date = Some(from.into());
+        self.to_date = Some(to.into());
+        self
+    }
 }

@@ -1,10 +1,10 @@
+use base64::{engine::general_purpose, Engine};
 use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use openai_rust2 as openai_rust;
 use std::env::var;
 use std::fs::File;
 use std::io::Write;
-use base64::{engine::general_purpose, Engine};
 
 lazy_static! {
     static ref KEY: String = var("OPENAI_API_KEY").unwrap_or_else(|e| {
@@ -112,9 +112,7 @@ pub async fn create_image() {
     let base64_images = c.create_image(args, None).await.unwrap();
 
     if let Some(base64_image) = base64_images.first() {
-        let image_bytes = general_purpose::STANDARD
-            .decode(base64_image)
-            .unwrap();
+        let image_bytes = general_purpose::STANDARD.decode(base64_image).unwrap();
 
         let mut file = File::create("generated_image.png").unwrap();
         file.write_all(&image_bytes).unwrap();
