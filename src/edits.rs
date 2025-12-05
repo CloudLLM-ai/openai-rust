@@ -52,7 +52,7 @@ impl EditArguments {
         EditArguments {
             model: model.as_ref().to_owned(),
             input: Some(input),
-            instruction: instruction,
+            instruction,
             n: None,
             temperature: None,
             top_p: None,

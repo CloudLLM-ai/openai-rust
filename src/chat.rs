@@ -39,8 +39,11 @@ pub struct ChatArguments {
     pub response_format: Option<ResponseFormat>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image_generation: Option<ImageGeneration>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub search_parameters: Option<SearchParameters>, // Grok-specific search parameter (for now)
+    /// xAI Agent Tools API - server-side tools for agentic capabilities.
+    /// Includes: web_search, x_search, code_execution, collections_search, mcp.
+    /// See: https://docs.x.ai/docs/guides/tools/overview
+    #[serde(skip_serializing_if = "Option::is_none", rename = "server_tools")]
+    pub grok_tools: Option<Vec<GrokTool>>,
 }
 
 impl ChatArguments {
@@ -59,12 +62,14 @@ impl ChatArguments {
             user: None,
             response_format: None,
             image_generation: None,
-            search_parameters: None, // Grok-specific search parameter (for now)
+            grok_tools: None,
         }
     }
 
-    pub fn with_search_parameters(mut self, params: SearchParameters) -> Self {
-        self.search_parameters = Some(params);
+    /// Add xAI server-side tools for agentic capabilities.
+    /// Recommended model: `grok-4-1-fast` for best tool-calling performance.
+    pub fn with_grok_tools(mut self, tools: Vec<GrokTool>) -> Self {
+        self.grok_tools = Some(tools);
         self
     }
 }
@@ -164,7 +169,7 @@ pub mod stream {
                             }
                             self.get_mut().buf = chunks.collect::<Vec<_>>().join("\n\n");
                             Some(
-                                serde_json::from_str::<ChatCompletionChunk>(&chunk)
+                                serde_json::from_str::<ChatCompletionChunk>(chunk)
                                     .map_err(|e| anyhow::anyhow!(e)),
                             )
                         }
@@ -183,10 +188,9 @@ pub mod stream {
             mut self: Pin<&mut Self>,
             cx: &mut std::task::Context<'_>,
         ) -> Poll<Option<Self::Item>> {
-            match self.as_mut().deserialize_buf(cx) {
-                Some(chunk) => return Poll::Ready(Some(chunk)),
-                None => {}
-            };
+            if let Some(chunk) = self.as_mut().deserialize_buf(cx) {
+                return Poll::Ready(Some(chunk));
+            }
 
             match self.byte_stream.as_mut().poll_next(cx) {
                 Poll::Ready(bytes_option) => match bytes_option {
@@ -239,42 +243,148 @@ pub enum Role {
     User,
 }
 
-// Grok-specific search parameters
+// =============================================================================
+// xAI Agent Tools API
+// See: https://docs.x.ai/docs/guides/tools/overview
+// =============================================================================
+
+/// Represents a server-side tool available in xAI's Agent Tools API.
+///
+/// xAI provides agentic server-side tool calling where the model autonomously
+/// explores, searches, and executes code. The server handles the entire
+/// reasoning and tool-execution loop.
+///
+/// # Supported Models
+/// - `grok-4-1-fast` (recommended for agentic tool calling)
+/// - `grok-4-1-fast-non-reasoning`
+/// - `grok-4`, `grok-4-fast`, `grok-4-fast-non-reasoning`
+///
+/// # Example
+/// ```rust,no_run
+/// use openai_rust2::chat::GrokTool;
+///
+/// let tools = vec![
+///     GrokTool::web_search(),
+///     GrokTool::x_search(),
+///     GrokTool::code_execution(),
+///     GrokTool::collections_search(vec!["collection-id-1".into()]),
+///     GrokTool::mcp("https://my-mcp-server.com".into()),
+/// ];
+/// ```
 #[derive(Serialize, Debug, Clone)]
-pub struct SearchParameters {
-    pub mode: SearchMode, // "off", "on", "auto" (Live search is enabled but model decides when to use it)
+pub struct GrokTool {
+    /// The type of tool: "web_search", "x_search", "code_execution", "collections_search", "mcp"
+    #[serde(rename = "type")]
+    pub tool_type: GrokToolType,
+    /// Restrict web search to specific domains (max 5). Only applies to web_search.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub return_citations: Option<bool>,
-    /// Inclusive yyyy-mm-dd
+    pub allowed_domains: Option<Vec<String>>,
+    /// Inclusive start date for search results (ISO8601: YYYY-MM-DD). Applies to web_search and x_search.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from_date: Option<String>,
-    /// Inclusive upper‐bound yyyy-mm-dd
+    /// Inclusive end date for search results (ISO8601: YYYY-MM-DD). Applies to web_search and x_search.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub to_date: Option<String>,
+    /// Collection IDs to search. Required for collections_search tool.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub collection_ids: Option<Vec<String>>,
+    /// MCP server URL. Required for mcp tool.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_url: Option<String>,
 }
 
+/// The type of xAI server-side tool.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")] // <-- "On" → "on", etc.
-pub enum SearchMode {
-    On,
-    Off,
-    Auto,
+#[serde(rename_all = "snake_case")]
+pub enum GrokToolType {
+    /// Real-time web search and page browsing
+    WebSearch,
+    /// Search X (Twitter) posts, users, and threads
+    XSearch,
+    /// Execute Python code for calculations and data analysis
+    CodeExecution,
+    /// Search uploaded document collections (knowledge bases)
+    CollectionsSearch,
+    /// Connect to external MCP servers for custom tools
+    Mcp,
 }
 
-impl SearchParameters {
-    pub fn new(mode: SearchMode) -> Self {
+impl GrokTool {
+    /// Create a web_search tool with default settings.
+    /// Allows the agent to search the web and browse pages.
+    pub fn web_search() -> Self {
         Self {
-            mode,
-            return_citations: None,
+            tool_type: GrokToolType::WebSearch,
+            allowed_domains: None,
             from_date: None,
             to_date: None,
+            collection_ids: None,
+            server_url: None,
         }
     }
-    pub fn with_citations(mut self, yes: bool) -> Self {
-        self.return_citations = Some(yes);
+
+    /// Create an x_search tool with default settings.
+    /// Allows the agent to search X posts, users, and threads.
+    pub fn x_search() -> Self {
+        Self {
+            tool_type: GrokToolType::XSearch,
+            allowed_domains: None,
+            from_date: None,
+            to_date: None,
+            collection_ids: None,
+            server_url: None,
+        }
+    }
+
+    /// Create a code_execution tool.
+    /// Allows the agent to execute Python code for calculations and data analysis.
+    pub fn code_execution() -> Self {
+        Self {
+            tool_type: GrokToolType::CodeExecution,
+            allowed_domains: None,
+            from_date: None,
+            to_date: None,
+            collection_ids: None,
+            server_url: None,
+        }
+    }
+
+    /// Create a collections_search tool with the specified collection IDs.
+    /// Allows the agent to search through uploaded knowledge bases.
+    pub fn collections_search(collection_ids: Vec<String>) -> Self {
+        Self {
+            tool_type: GrokToolType::CollectionsSearch,
+            allowed_domains: None,
+            from_date: None,
+            to_date: None,
+            collection_ids: Some(collection_ids),
+            server_url: None,
+        }
+    }
+
+    /// Create an MCP tool connecting to an external MCP server.
+    /// Allows the agent to access custom tools from the specified server.
+    pub fn mcp(server_url: String) -> Self {
+        Self {
+            tool_type: GrokToolType::Mcp,
+            allowed_domains: None,
+            from_date: None,
+            to_date: None,
+            collection_ids: None,
+            server_url: Some(server_url),
+        }
+    }
+
+    /// Restrict web search to specific domains (max 5).
+    /// Only applies to web_search tool.
+    pub fn with_allowed_domains(mut self, domains: Vec<String>) -> Self {
+        self.allowed_domains = Some(domains);
         self
     }
-    pub fn with_date_range_str(mut self, from: impl Into<String>, to: impl Into<String>) -> Self {
+
+    /// Set the date range for search results (ISO8601: YYYY-MM-DD).
+    /// Applies to web_search and x_search tools.
+    pub fn with_date_range(mut self, from: impl Into<String>, to: impl Into<String>) -> Self {
         self.from_date = Some(from.into());
         self.to_date = Some(to.into());
         self

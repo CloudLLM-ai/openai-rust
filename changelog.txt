@@ -1,5 +1,14 @@
+1.7.0 - 2025-12-04
+ - BREAKING: Removed deprecated search_parameters and SearchParameters/SearchMode (xAI Live Search API deprecated Dec 15, 2025)
+ - new: grok_tools field in ChatArguments for xAI Agent Tools API (serializes as "tools")
+ - new: GrokTool struct with factory methods: web_search(), x_search(), code_execution(), collections_search(), mcp()
+ - new: GrokToolType enum: WebSearch, XSearch, CodeExecution, CollectionsSearch, Mcp
+ - new: GrokTool builder methods: with_allowed_domains(), with_date_range()
+ - new: ChatArguments::with_grok_tools() builder method
+ - See: https://docs.x.ai/docs/guides/tools/overview
+
 1.6.0 - 2025-05-27
- - new: new: added search_parameters chat argument proposed by Grok with SearchMode enum (on | off | auto), return_citations, and date-range fields (from_date, to_date)
+ - new: added search_parameters chat argument proposed by Grok with SearchMode enum (on | off | auto), return_citations, and date-range fields (from_date, to_date)
 
 1.5.9 - 2025-05-16
  - new: support for gpt-image-1 model in image generation via /v1/images/generations endpoint

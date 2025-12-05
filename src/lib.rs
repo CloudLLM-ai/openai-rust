@@ -1,9 +1,6 @@
 pub extern crate futures_util;
 use anyhow::{anyhow, Result};
-use base64::Engine as _;
 use lazy_static::lazy_static;
-use reqwest;
-use serde::{Deserialize, Serialize};
 
 lazy_static! {
     static ref DEFAULT_BASE_URL: reqwest::Url =
