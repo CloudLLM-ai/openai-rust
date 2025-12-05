@@ -1,3 +1,13 @@
+1.7.1 - 2025-12-04
+ - new: xAI Responses API support (/v1/responses endpoint) for agentic tool calling
+ - new: ResponsesArguments struct with input (messages) and tools fields
+ - new: ResponsesMessage struct for Responses API input format
+ - new: ResponsesCompletion, ResponsesOutputItem, ResponsesContent, ResponsesUsage response types
+ - new: Client::create_responses() method for calling the Responses API
+ - new: ResponsesCompletion::get_text_content() helper to extract text from response
+ - fix: grok_tools field now serializes as "server_tools" for Chat Completions API compatibility
+ - See: https://docs.x.ai/docs/guides/tools/search-tools
+
 1.7.0 - 2025-12-04
  - BREAKING: Removed deprecated search_parameters and SearchParameters/SearchMode (xAI Live Search API deprecated Dec 15, 2025)
  - new: grok_tools field in ChatArguments for xAI Agent Tools API (serializes as "tools")

@@ -251,4 +251,56 @@ impl Client {
             Err(anyhow!(res.text().await?))
         }
     }
+
+    /// Create a response using xAI's Responses API with agentic tool calling.
+    ///
+    /// This method calls the `/v1/responses` endpoint which supports server-side
+    /// tools like web_search, x_search, code_execution, and more.
+    ///
+    /// # Arguments
+    /// * `args` - The ResponsesArguments containing model, input messages, and tools
+    /// * `opt_url_path` - Optional URL path override (defaults to `/v1/responses`)
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use openai_rust2::chat::{ResponsesArguments, ResponsesMessage, GrokTool};
+    /// use openai_rust2::Client;
+    ///
+    /// async fn example() -> anyhow::Result<()> {
+    ///     let client = Client::new_with_base_url("your-api-key", "https://api.x.ai/v1");
+    ///     let args = ResponsesArguments::new(
+    ///         "grok-4-1-fast-reasoning",
+    ///         vec![ResponsesMessage {
+    ///             role: "user".to_string(),
+    ///             content: "What is the current Bitcoin price?".to_string(),
+    ///         }],
+    ///     ).with_tools(vec![GrokTool::web_search()]);
+    ///
+    ///     let response = client.create_responses(args, None).await?;
+    ///     println!("{}", response.get_text_content());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn create_responses(
+        &self,
+        args: chat::ResponsesArguments,
+        opt_url_path: Option<String>,
+    ) -> Result<chat::ResponsesCompletion, anyhow::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/responses")));
+
+        let res = self
+            .req_client
+            .post(url)
+            .bearer_auth(&self.key)
+            .json(&args)
+            .send()
+            .await?;
+
+        if res.status() == 200 {
+            Ok(res.json().await?)
+        } else {
+            Err(anyhow!(res.text().await?))
+        }
+    }
 }

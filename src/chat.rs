@@ -390,3 +390,161 @@ impl GrokTool {
         self
     }
 }
+
+// =============================================================================
+// xAI Responses API
+// See: https://docs.x.ai/docs/guides/tools/search-tools
+// The Responses API is a separate endpoint (/v1/responses) for agentic tool calling.
+// =============================================================================
+
+/// Request arguments for xAI's Responses API endpoint (/v1/responses).
+///
+/// This API provides agentic tool calling where the model autonomously
+/// explores, searches, and executes code. Unlike the Chat Completions API,
+/// the Responses API uses `input` instead of `messages` and `tools` instead
+/// of `server_tools`.
+///
+/// # Example
+/// ```rust,no_run
+/// use openai_rust2::chat::{ResponsesArguments, ResponsesMessage, GrokTool};
+///
+/// let args = ResponsesArguments::new(
+///     "grok-4-1-fast-reasoning",
+///     vec![ResponsesMessage {
+///         role: "user".to_string(),
+///         content: "What is the current price of Bitcoin?".to_string(),
+///     }],
+/// ).with_tools(vec![GrokTool::web_search()]);
+/// ```
+#[derive(Serialize, Debug, Clone)]
+pub struct ResponsesArguments {
+    pub model: String,
+    pub input: Vec<ResponsesMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<GrokTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+}
+
+impl ResponsesArguments {
+    /// Create new ResponsesArguments for the xAI Responses API.
+    pub fn new(model: impl AsRef<str>, input: Vec<ResponsesMessage>) -> Self {
+        Self {
+            model: model.as_ref().to_owned(),
+            input,
+            tools: None,
+            temperature: None,
+            max_output_tokens: None,
+        }
+    }
+
+    /// Add tools for agentic capabilities.
+    pub fn with_tools(mut self, tools: Vec<GrokTool>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
+
+    /// Set the temperature for response generation.
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Set the maximum output tokens.
+    pub fn with_max_output_tokens(mut self, max_tokens: u32) -> Self {
+        self.max_output_tokens = Some(max_tokens);
+        self
+    }
+}
+
+/// Message format for the Responses API input array.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ResponsesMessage {
+    pub role: String,
+    pub content: String,
+}
+
+/// Response from xAI's Responses API.
+///
+/// The Responses API returns a different format from Chat Completions,
+/// including citations for sources used during agentic search.
+#[derive(Deserialize, Debug, Clone)]
+pub struct ResponsesCompletion {
+    #[serde(default)]
+    pub id: Option<String>,
+    /// The output content items from the model
+    pub output: Vec<ResponsesOutputItem>,
+    /// Citations for sources used during search (URLs)
+    #[serde(default)]
+    pub citations: Vec<String>,
+    /// Token usage statistics
+    pub usage: ResponsesUsage,
+}
+
+impl ResponsesCompletion {
+    /// Extract the text content from the response output.
+    pub fn get_text_content(&self) -> String {
+        self.output
+            .iter()
+            .filter_map(|item| {
+                if item.item_type == "message" {
+                    item.content.as_ref().map(|contents| {
+                        contents
+                            .iter()
+                            .filter_map(|c| {
+                                if c.content_type == "output_text" {
+                                    c.text.clone()
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join("")
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("")
+    }
+}
+
+impl std::fmt::Display for ResponsesCompletion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.get_text_content())
+    }
+}
+
+/// An output item in the Responses API response.
+#[derive(Deserialize, Debug, Clone)]
+pub struct ResponsesOutputItem {
+    #[serde(rename = "type")]
+    pub item_type: String,
+    #[serde(default)]
+    pub role: Option<String>,
+    #[serde(default)]
+    pub content: Option<Vec<ResponsesContent>>,
+}
+
+/// Content within a Responses API output item.
+#[derive(Deserialize, Debug, Clone)]
+pub struct ResponsesContent {
+    #[serde(rename = "type")]
+    pub content_type: String,
+    #[serde(default)]
+    pub text: Option<String>,
+}
+
+/// Token usage for Responses API.
+#[derive(Deserialize, Debug, Clone)]
+pub struct ResponsesUsage {
+    #[serde(default)]
+    pub input_tokens: u32,
+    #[serde(default)]
+    pub output_tokens: u32,
+    #[serde(default)]
+    pub total_tokens: u32,
+}

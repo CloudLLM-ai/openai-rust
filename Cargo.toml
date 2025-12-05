@@ -1,6 +1,6 @@
 [package]
 name = "openai-rust2"
-version = "1.7.0"
+version = "1.7.1"
 edition = "2021"
 authors = ["gubatron","LevitatingBusinessMan"]
 description = "An unofficial library for the OpenAI API"
