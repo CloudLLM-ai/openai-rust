@@ -1,3 +1,19 @@
+1.7.2 - 2025-12-08
+ - new: OpenAI Responses API support for agentic tool calling (web_search, file_search, code_interpreter)
+ - new: OpenAIToolType enum: WebSearch, FileSearch, CodeInterpreter
+ - new: OpenAITool struct with tool-specific configuration (search_context_size, user_location, max_num_results)
+ - new: UserLocation struct for geographic filtering on web_search (country, city, region, timezone)
+ - new: OpenAIResponsesArguments struct for /v1/responses endpoint requests
+ - new: Client::create_openai_responses() method for calling the OpenAI Responses API
+ - new: OpenAITool factory methods: web_search(), file_search(), code_interpreter()
+ - new: OpenAITool builder methods: with_search_context_size(), with_user_location(), with_max_num_results()
+ - new: ChatArguments::with_openai_tools() builder method
+ - feature: Reuses ResponsesCompletion structure for unified response handling across Grok and OpenAI
+ - feature: Geographic filtering for web search by country, city, region, and timezone
+ - feature: Search context size control (high/medium/low) for balanced quality and latency
+ - Supported Models: gpt-5, gpt-4o, and other models with Responses API support
+ - See: https://platform.openai.com/docs/guides/tools-web-search
+
 1.7.1 - 2025-12-04
  - new: xAI Responses API support (/v1/responses endpoint) for agentic tool calling
  - new: ResponsesArguments struct with input (messages) and tools fields
