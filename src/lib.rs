@@ -303,4 +303,58 @@ impl Client {
             Err(anyhow!(res.text().await?))
         }
     }
+
+    /// Create a response using OpenAI's Responses API with agentic tool calling.
+    ///
+    /// This method calls the `/v1/responses` endpoint which supports server-side
+    /// tools like web_search, file_search, and code_interpreter.
+    ///
+    /// Supported models: gpt-5, gpt-4o, and other models with tool support.
+    ///
+    /// # Arguments
+    /// * `args` - The OpenAIResponsesArguments containing model, input messages, and tools
+    /// * `opt_url_path` - Optional URL path override (defaults to `/v1/responses`)
+    ///
+    /// # Example
+    /// ```rust,no_run
+    /// use openai_rust2::chat::{OpenAIResponsesArguments, ResponsesMessage, OpenAITool};
+    /// use openai_rust2::Client;
+    ///
+    /// async fn example() -> anyhow::Result<()> {
+    ///     let client = Client::new("your-openai-api-key");
+    ///     let args = OpenAIResponsesArguments::new(
+    ///         "gpt-5",
+    ///         vec![ResponsesMessage {
+    ///             role: "user".to_string(),
+    ///             content: "What are the latest developments in AI?".to_string(),
+    ///         }],
+    ///     ).with_tools(vec![OpenAITool::web_search()]);
+    ///
+    ///     let response = client.create_openai_responses(args, None).await?;
+    ///     println!("{}", response.get_text_content());
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn create_openai_responses(
+        &self,
+        args: chat::OpenAIResponsesArguments,
+        opt_url_path: Option<String>,
+    ) -> Result<chat::ResponsesCompletion, anyhow::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/responses")));
+
+        let res = self
+            .req_client
+            .post(url)
+            .bearer_auth(&self.key)
+            .json(&args)
+            .send()
+            .await?;
+
+        if res.status() == 200 {
+            Ok(res.json().await?)
+        } else {
+            Err(anyhow!(res.text().await?))
+        }
+    }
 }

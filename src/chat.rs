@@ -44,6 +44,12 @@ pub struct ChatArguments {
     /// See: https://docs.x.ai/docs/guides/tools/overview
     #[serde(skip_serializing_if = "Option::is_none", rename = "server_tools")]
     pub grok_tools: Option<Vec<GrokTool>>,
+    /// OpenAI Agent Tools API - server-side tools for agentic capabilities (Responses API only).
+    /// Includes: web_search, file_search, code_interpreter.
+    /// Note: When tools are provided, use create_openai_responses() to use the Responses API endpoint.
+    /// See: https://platform.openai.com/docs/guides/tools-web-search
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<OpenAITool>>,
 }
 
 impl ChatArguments {
@@ -63,6 +69,7 @@ impl ChatArguments {
             response_format: None,
             image_generation: None,
             grok_tools: None,
+            tools: None,
         }
     }
 
@@ -70,6 +77,14 @@ impl ChatArguments {
     /// Recommended model: `grok-4-1-fast` for best tool-calling performance.
     pub fn with_grok_tools(mut self, tools: Vec<GrokTool>) -> Self {
         self.grok_tools = Some(tools);
+        self
+    }
+
+    /// Add OpenAI server-side tools for agentic capabilities (Responses API).
+    /// Note: When tools are provided, use create_openai_responses() to use the Responses API endpoint.
+    /// Recommended models: `gpt-5`, `gpt-4o`.
+    pub fn with_openai_tools(mut self, tools: Vec<OpenAITool>) -> Self {
+        self.tools = Some(tools);
         self
     }
 }
@@ -547,4 +562,200 @@ pub struct ResponsesUsage {
     pub output_tokens: u32,
     #[serde(default)]
     pub total_tokens: u32,
+}
+
+// =============================================================================
+// OpenAI Responses API (web_search, file_search, code_interpreter)
+// See: https://platform.openai.com/docs/guides/tools-web-search
+// =============================================================================
+
+/// The type of OpenAI server-side tool for the Responses API.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum OpenAIToolType {
+    /// Real-time web search with current data and citations
+    WebSearch,
+    /// Search through uploaded files and document collections
+    FileSearch,
+    /// Execute code (Python) for calculations and data analysis
+    CodeInterpreter,
+}
+
+/// Geographic location for filtering web search results (OpenAI web_search tool).
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct UserLocation {
+    /// ISO 2-letter country code (e.g., "US", "GB", "DE")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    /// City name for regional filtering (free-form text)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    /// Region/state name (free-form text)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub region: Option<String>,
+    /// IANA timezone (e.g., "America/New_York", "Europe/London")
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+}
+
+/// OpenAI server-side tool for the Responses API.
+///
+/// Supports web_search, file_search, and code_interpreter tools.
+/// Unlike GrokTool, each OpenAI tool has specific configuration options.
+///
+/// # Example
+/// ```rust,no_run
+/// use openai_rust2::chat::OpenAITool;
+///
+/// // Web search with geographic filtering
+/// let web_search = OpenAITool::web_search()
+///     .with_search_context_size("high")
+///     .with_user_location(UserLocation {
+///         country: Some("US".to_string()),
+///         city: Some("San Francisco".to_string()),
+///         region: Some("CA".to_string()),
+///         timezone: Some("America/Los_Angeles".to_string()),
+///     });
+///
+/// // File search for document collections
+/// let file_search = OpenAITool::file_search()
+///     .with_max_num_results(10);
+///
+/// // Code interpreter for data analysis
+/// let code_interpreter = OpenAITool::code_interpreter();
+/// ```
+#[derive(Serialize, Debug, Clone)]
+pub struct OpenAITool {
+    /// The type of tool: "web_search", "file_search", or "code_interpreter"
+    #[serde(rename = "type")]
+    pub tool_type: OpenAIToolType,
+    /// Controls the scope of information gathered for web_search: "high", "medium", or "low"
+    /// Higher settings provide better answers but increase latency and cost.
+    /// Only applies to web_search tool.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub search_context_size: Option<String>,
+    /// Geographic location for filtering web search results.
+    /// Only applies to web_search tool.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_location: Option<UserLocation>,
+    /// Maximum number of documents to return for file_search.
+    /// Only applies to file_search tool.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_num_results: Option<u32>,
+}
+
+impl OpenAITool {
+    /// Create a web_search tool with default settings.
+    /// Allows the model to search the web in real-time.
+    pub fn web_search() -> Self {
+        Self {
+            tool_type: OpenAIToolType::WebSearch,
+            search_context_size: None,
+            user_location: None,
+            max_num_results: None,
+        }
+    }
+
+    /// Create a file_search tool with default settings.
+    /// Allows the model to search through uploaded files and documents.
+    pub fn file_search() -> Self {
+        Self {
+            tool_type: OpenAIToolType::FileSearch,
+            search_context_size: None,
+            user_location: None,
+            max_num_results: None,
+        }
+    }
+
+    /// Create a code_interpreter tool.
+    /// Allows the model to execute Python code for calculations and analysis.
+    pub fn code_interpreter() -> Self {
+        Self {
+            tool_type: OpenAIToolType::CodeInterpreter,
+            search_context_size: None,
+            user_location: None,
+            max_num_results: None,
+        }
+    }
+
+    /// Set the search context size for web_search: "high", "medium", or "low".
+    /// Higher settings provide better answers but increase latency and cost.
+    pub fn with_search_context_size(mut self, size: impl Into<String>) -> Self {
+        self.search_context_size = Some(size.into());
+        self
+    }
+
+    /// Set geographic location for filtering web search results.
+    pub fn with_user_location(mut self, location: UserLocation) -> Self {
+        self.user_location = Some(location);
+        self
+    }
+
+    /// Set maximum number of documents to return for file_search.
+    pub fn with_max_num_results(mut self, max_results: u32) -> Self {
+        self.max_num_results = Some(max_results);
+        self
+    }
+}
+
+/// Request arguments for OpenAI's Responses API endpoint (/v1/responses).
+///
+/// This API provides agentic tool calling where the model autonomously
+/// uses web_search, file_search, or code_interpreter tools. Unlike the Chat
+/// Completions API, the Responses API uses `input` instead of `messages` and
+/// `tools` instead of function definitions.
+///
+/// # Example
+/// ```rust,no_run
+/// use openai_rust2::chat::{OpenAIResponsesArguments, OpenAITool};
+///
+/// let args = OpenAIResponsesArguments::new(
+///     "gpt-5",
+///     vec![{
+///         "role": "user",
+///         "content": "What's the latest news about AI?"
+///     }],
+/// ).with_tools(vec![OpenAITool::web_search()]);
+/// ```
+#[derive(Serialize, Debug, Clone)]
+pub struct OpenAIResponsesArguments {
+    pub model: String,
+    pub input: Vec<ResponsesMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<OpenAITool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+}
+
+impl OpenAIResponsesArguments {
+    /// Create new OpenAIResponsesArguments for the OpenAI Responses API.
+    pub fn new(model: impl AsRef<str>, input: Vec<ResponsesMessage>) -> Self {
+        Self {
+            model: model.as_ref().to_owned(),
+            input,
+            tools: None,
+            temperature: None,
+            max_output_tokens: None,
+        }
+    }
+
+    /// Add tools for agentic capabilities (web_search, file_search, code_interpreter).
+    pub fn with_tools(mut self, tools: Vec<OpenAITool>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
+
+    /// Set the temperature for response generation (0.0 to 2.0).
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Set the maximum output tokens.
+    pub fn with_max_output_tokens(mut self, max_tokens: u32) -> Self {
+        self.max_output_tokens = Some(max_tokens);
+        self
+    }
 }
