@@ -2,6 +2,7 @@
 //! Use with [Client::list_models](crate::Client::list_models).
 use serde::Deserialize;
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub(crate) struct ListModelsResponse {
     pub data: Vec<Model>,
