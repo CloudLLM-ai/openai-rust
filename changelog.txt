@@ -1,3 +1,18 @@
+1.7.3 - 2026-06-06
+ - perf: Shared optimized HTTP client with connection pooling (SHARED_HTTP_CLIENT)
+   - pool_max_idle_per_host: 100 (handle burst traffic without connection churn)
+   - pool_idle_timeout: 90s (keep connections warm between requests)
+   - tcp_keepalive: 60s (detect dead connections proactively)
+   - connect_timeout: 10s (fail fast on connection issues)
+   - timeout: 300s (generous for large model responses)
+   - tcp_nodelay: true (reduce latency for small requests)
+ - perf: All Client constructors (new, new_with_base_url) now use shared client
+ - feat: Client::shared_client() accessor for advanced usage
+ - fix: Better error messages with raw response body for debugging API errors
+ - refactor: Unified send_json/send_get helpers eliminating code duplication across all HTTP methods
+ - fix: Removed http2_prior_knowledge() to avoid HTTP/2 frame size errors with some providers
+ - test: Verified Chat Completions and Responses APIs work with OpenRouter free tier models
+
 1.7.2 - 2025-12-08
  - new: OpenAI Responses API support for agentic tool calling (web_search, file_search, code_interpreter)
  - new: OpenAIToolType enum: WebSearch, FileSearch, CodeInterpreter
