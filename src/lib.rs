@@ -1,10 +1,32 @@
 pub extern crate futures_util;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
+use std::time::Duration;
 
 lazy_static! {
     static ref DEFAULT_BASE_URL: reqwest::Url =
         reqwest::Url::parse("https://api.openai.com/v1/models").unwrap();
+
+    /// Shared HTTP client with optimized connection pooling for high-throughput LLM workloads.
+    ///
+    /// Configuration rationale:
+    /// - pool_max_idle_per_host: 100 (handle burst traffic without connection churn)
+    /// - pool_idle_timeout: 90s (keep connections warm between requests)
+    /// - tcp_keepalive: 60s (detect dead connections proactively)
+    /// - connect_timeout: 10s (fail fast on connection issues)
+    /// - timeout: 300s (generous for large model responses)
+    /// - tcp_nodelay: true (reduce latency for small requests)
+    static ref SHARED_HTTP_CLIENT: reqwest::Client = {
+        reqwest::ClientBuilder::new()
+            .pool_idle_timeout(Some(Duration::from_secs(90)))
+            .pool_max_idle_per_host(100)
+            .tcp_keepalive(Some(Duration::from_secs(60)))
+            .timeout(Duration::from_secs(300))
+            .connect_timeout(Duration::from_secs(10))
+            .tcp_nodelay(true)
+            .build()
+            .expect("Failed to build shared HTTP client")
+    };
 }
 
 pub struct Client {
@@ -21,15 +43,18 @@ pub mod images;
 pub mod models;
 
 impl Client {
+    /// Create a new client with the shared optimized HTTP client.
+    /// Uses connection pooling with keep-alive for high-throughput workloads.
     pub fn new(api_key: &str) -> Client {
-        let req_client = reqwest::ClientBuilder::new().build().unwrap();
         Client {
-            req_client,
+            req_client: SHARED_HTTP_CLIENT.clone(),
             key: api_key.to_owned(),
             base_url: DEFAULT_BASE_URL.clone(),
         }
     }
 
+    /// Create a new client with a custom reqwest::Client.
+    /// Use this when you need custom TLS, proxy, or connection pool settings.
     pub fn new_with_client(api_key: &str, req_client: reqwest::Client) -> Client {
         Client {
             req_client,
@@ -38,16 +63,17 @@ impl Client {
         }
     }
 
+    /// Create a new client with the shared optimized HTTP client and custom base URL.
     pub fn new_with_base_url(api_key: &str, base_url: &str) -> Client {
-        let req_client = reqwest::ClientBuilder::new().build().unwrap();
         let base_url = reqwest::Url::parse(base_url).unwrap();
         Client {
-            req_client,
+            req_client: SHARED_HTTP_CLIENT.clone(),
             key: api_key.to_owned(),
             base_url,
         }
     }
 
+    /// Create a new client with a custom reqwest::Client and custom base URL.
     pub fn new_with_client_and_base_url(
         api_key: &str,
         req_client: reqwest::Client,
@@ -60,12 +86,54 @@ impl Client {
         }
     }
 
-    pub async fn list_models(
+    /// Get a reference to the shared HTTP client for advanced usage.
+    pub fn shared_client() -> &'static reqwest::Client {
+        &SHARED_HTTP_CLIENT
+    }
+
+    /// Helper to send a POST request with JSON body and parse the response.
+    /// Returns the raw text for non-200 responses, or parses JSON for 200 responses.
+    async fn send_json<T: serde::de::DeserializeOwned>(
         &self,
-        opt_url_path: Option<String>,
-    ) -> Result<Vec<models::Model>, anyhow::Error> {
+        path: &str,
+        body: &impl serde::Serialize,
+        error_context: &str,
+    ) -> Result<T, anyhow::Error> {
         let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/models")));
+        url.set_path(path);
+
+        let res = self
+            .req_client
+            .post(url)
+            .bearer_auth(&self.key)
+            .json(body)
+            .send()
+            .await?;
+
+        let status = res.status();
+        let text = res.text().await?;
+
+        if status == 200 {
+            serde_json::from_str(&text)
+                .map_err(|e| anyhow!("{} failed to parse: {}. Raw: {}", error_context, e, text))
+        } else {
+            Err(anyhow!(
+                "{} API error ({}): {}",
+                error_context,
+                status,
+                text
+            ))
+        }
+    }
+
+    /// Helper for GET requests
+    async fn send_get<T: serde::de::DeserializeOwned>(
+        &self,
+        path: &str,
+        error_context: &str,
+    ) -> Result<T, anyhow::Error> {
+        let mut url = self.base_url.clone();
+        url.set_path(path);
 
         let res = self
             .req_client
@@ -74,11 +142,33 @@ impl Client {
             .send()
             .await?;
 
-        if res.status() == 200 {
-            Ok(res.json::<models::ListModelsResponse>().await?.data)
+        let status = res.status();
+        let text = res.text().await?;
+
+        if status == 200 {
+            serde_json::from_str(&text)
+                .map_err(|e| anyhow!("{} failed to parse: {}. Raw: {}", error_context, e, text))
         } else {
-            Err(anyhow!(res.text().await?))
+            Err(anyhow!(
+                "{} API error ({}): {}",
+                error_context,
+                status,
+                text
+            ))
         }
+    }
+
+    pub async fn list_models(
+        &self,
+        opt_url_path: Option<String>,
+    ) -> Result<Vec<models::Model>, anyhow::Error> {
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/models"));
+        #[derive(serde::Deserialize)]
+        struct ListModelsResponse {
+            data: Vec<models::Model>,
+        }
+        let response: ListModelsResponse = self.send_get(&path, "list_models").await?;
+        Ok(response.data)
     }
 
     pub async fn create_chat(
@@ -86,22 +176,8 @@ impl Client {
         args: chat::ChatArguments,
         opt_url_path: Option<String>,
     ) -> Result<chat::ChatCompletion, anyhow::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/chat/completions")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/chat/completions"));
+        self.send_json(&path, &args, "create_chat").await
     }
 
     pub async fn create_chat_stream(
@@ -137,22 +213,8 @@ impl Client {
         args: completions::CompletionArguments,
         opt_url_path: Option<String>,
     ) -> Result<completions::CompletionResponse> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/completions")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/completions"));
+        self.send_json(&path, &args, "create_completion").await
     }
 
     pub async fn create_embeddings(
@@ -160,22 +222,8 @@ impl Client {
         args: embeddings::EmbeddingsArguments,
         opt_url_path: Option<String>,
     ) -> Result<embeddings::EmbeddingsResponse> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/embeddings")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/embeddings"));
+        self.send_json(&path, &args, "create_embeddings").await
     }
 
     pub async fn create_image_old(
@@ -183,31 +231,17 @@ impl Client {
         args: images::ImageArguments,
         opt_url_path: Option<String>,
     ) -> Result<Vec<String>> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/images/generations")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res
-                .json::<images::ImageResponse>()
-                .await?
-                .data
-                .iter()
-                .map(|o| match o {
-                    images::ImageObject::Url(s) => s.to_string(),
-                    images::ImageObject::Base64JSON(s) => s.to_string(),
-                })
-                .collect())
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/images/generations"));
+        let response: images::ImageResponse =
+            self.send_json(&path, &args, "create_image_old").await?;
+        Ok(response
+            .data
+            .iter()
+            .map(|o| match o {
+                images::ImageObject::Url(s) => s.to_string(),
+                images::ImageObject::Base64JSON(s) => s.to_string(),
+            })
+            .collect())
     }
 
     pub async fn create_image(
@@ -215,41 +249,25 @@ impl Client {
         args: images::ImageArguments,
         opt_url_path: Option<String>,
     ) -> Result<Vec<String>> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/images/generations")));
-
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/images/generations"));
         let image_args = images::ImageArguments {
             prompt: args.prompt,
             model: Some("gpt-image-1".to_string()),
             n: Some(1),
             size: Some("1024x1024".to_string()),
-            quality: Some("auto".to_string()), // valid quality values are 'low', 'medium', 'high' and 'auto'
-            //TODO: Make this an enum parameter to create_image
+            quality: Some("auto".to_string()),
             user: None,
         };
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&image_args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res
-                .json::<images::ImageResponse>()
-                .await?
-                .data
-                .iter()
-                .map(|o| match o {
-                    images::ImageObject::Url(s) => s.to_string(),
-                    images::ImageObject::Base64JSON(s) => s.to_string(),
-                })
-                .collect())
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let response: images::ImageResponse =
+            self.send_json(&path, &image_args, "create_image").await?;
+        Ok(response
+            .data
+            .iter()
+            .map(|o| match o {
+                images::ImageObject::Url(s) => s.to_string(),
+                images::ImageObject::Base64JSON(s) => s.to_string(),
+            })
+            .collect())
     }
 
     /// Create a response using xAI's Responses API with agentic tool calling.
@@ -286,22 +304,8 @@ impl Client {
         args: chat::ResponsesArguments,
         opt_url_path: Option<String>,
     ) -> Result<chat::ResponsesCompletion, anyhow::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/responses")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/responses"));
+        self.send_json(&path, &args, "create_responses").await
     }
 
     /// Create a response using OpenAI's Responses API with agentic tool calling.
@@ -340,21 +344,8 @@ impl Client {
         args: chat::OpenAIResponsesArguments,
         opt_url_path: Option<String>,
     ) -> Result<chat::ResponsesCompletion, anyhow::Error> {
-        let mut url = self.base_url.clone();
-        url.set_path(&opt_url_path.unwrap_or_else(|| String::from("/v1/responses")));
-
-        let res = self
-            .req_client
-            .post(url)
-            .bearer_auth(&self.key)
-            .json(&args)
-            .send()
-            .await?;
-
-        if res.status() == 200 {
-            Ok(res.json().await?)
-        } else {
-            Err(anyhow!(res.text().await?))
-        }
+        let path = opt_url_path.unwrap_or_else(|| String::from("/v1/responses"));
+        self.send_json(&path, &args, "create_openai_responses")
+            .await
     }
 }
