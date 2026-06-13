@@ -1,3 +1,14 @@
+1.7.5 - 2026-06-12
+ - fix: `send_json` and `send_get` no longer bubble up reqwest's bare "error decoding response body" on the 200 branch. Every body-read or JSON-parse failure now includes the HTTP status and the (truncated, char-boundary safe, 4 KiB cap) raw response body. This makes transport-level failures (connection reset, truncated stream, non-UTF-8 bytes) actually diagnosable from the caller's log.
+ - new: public `Client::read_and_parse_json` helper that callers can reuse for the same error-context guarantees on their own response bodies.
+ - fix: `create_chat` now classifies failures via `is_transient_error` and retries up to `max_retries` (default 3) times with exponential backoff (1s, 2s, 4s … capped at 30s) on: body-decode failures on the 200 branch, HTTP 429, and HTTP 500/502/503/504. Connection resets and truncated streams that previously surfaced as a single fatal error are now recovered transparently.
+ - fix: `create_chat_stream`'s non-200 error path now includes status + (truncated) raw body.
+ - new: `Client::with_max_retries(...)` exposes the per-call retry budget; `Client::default()` is now implemented so the struct is constructible without `new`.
+ - chore: add `tokio = { version = "1", features = ["time"] }` as a runtime dependency (was dev-only); needed for the application-level retry sleep in `create_chat`.
+
+1.7.4 - 2026-06-12
+ - fix: same body-decode error context as 1.7.5, but built on the pre-1.7.3 baseline (no shared HTTP client, no connection pooling). Superseded by 1.7.5; remains on crates.io for compatibility but downstream users are encouraged to pin >= 1.7.5.
+
 1.7.3 - 2026-06-06
  - perf: Shared optimized HTTP client with connection pooling (SHARED_HTTP_CLIENT)
    - pool_max_idle_per_host: 100 (handle burst traffic without connection churn)
