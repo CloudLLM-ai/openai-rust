@@ -1,3 +1,21 @@
+1.7.6 - 2026-07-10
+ - chore(deps): refresh dependency floors (still on reqwest 0.12.x so consumers
+   that share a `reqwest::Client` with this crate remain type-compatible):
+   - anyhow 1.0.98 → 1.0.103
+   - bytes 1.4 → 1.12
+   - futures-util 0.3.27 → 0.3.32
+   - lazy_static 1.4 → 1.5
+   - reqwest 0.12.12 → 0.12.28 (explicitly not 0.13; default-TLS / API surface)
+   - serde 1.0.218 → 1.0.228
+   - serde_json 1.0.94 → 1.0.150
+   - tokio 1 / 1.43 → 1.52
+ - test: live integration tests now skip cleanly when `OPENAI_API_KEY` is unset;
+   Ollama probe only runs when `localhost:11434` is reachable. Prefer
+   `gpt-4o-mini` / `text-embedding-3-small` for live chat/embed smokes.
+ - chore: add `Makefile` with `make clippy` (`cargo clippy -- -D warnings`).
+ - style: clippy `needless_borrow` clean under `-D warnings`.
+ - docs: point crates.io / docs.rs badges at `openai-rust2`.
+
 1.7.5 - 2026-06-12
  - fix: `send_json` and `send_get` no longer bubble up reqwest's bare "error decoding response body" on the 200 branch. Every body-read or JSON-parse failure now includes the HTTP status and the (truncated, char-boundary safe, 4 KiB cap) raw response body. This makes transport-level failures (connection reset, truncated stream, non-UTF-8 bytes) actually diagnosable from the caller's log.
  - new: public `Client::read_and_parse_json` helper that callers can reuse for the same error-context guarantees on their own response bodies.

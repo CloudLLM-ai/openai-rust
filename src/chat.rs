@@ -605,7 +605,7 @@ pub struct UserLocation {
 ///
 /// # Example
 /// ```rust,no_run
-/// use openai_rust2::chat::OpenAITool;
+/// use openai_rust2::chat::{OpenAITool, UserLocation};
 ///
 /// // Web search with geographic filtering
 /// let web_search = OpenAITool::web_search()
@@ -707,13 +707,13 @@ impl OpenAITool {
 ///
 /// # Example
 /// ```rust,no_run
-/// use openai_rust2::chat::{OpenAIResponsesArguments, OpenAITool};
+/// use openai_rust2::chat::{OpenAIResponsesArguments, OpenAITool, ResponsesMessage};
 ///
 /// let args = OpenAIResponsesArguments::new(
-///     "gpt-5",
-///     vec![{
-///         "role": "user",
-///         "content": "What's the latest news about AI?"
+///     "gpt-4o",
+///     vec![ResponsesMessage {
+///         role: "user".to_string(),
+///         content: "What's the latest news about AI?".to_string(),
 ///     }],
 /// ).with_tools(vec![OpenAITool::web_search()]);
 /// ```

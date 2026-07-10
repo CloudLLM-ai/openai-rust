@@ -1,55 +1,75 @@
 # openai-rust2
 
-[![Test Status](https://github.com/LevitatingBusinessMan/openai-rust/workflows/Build/badge.svg)](https://github.com/LevitatingBusinessMan/openai-rust/actions)
-[![Crates.io](https://img.shields.io/crates/v/openai-rust)](https://crates.io/crates/openai-rust)
-[![docs.rs](https://img.shields.io/docsrs/openai-rust)](https://docs.rs/openai-rust/latest/openai_rust/)
+[![Crates.io](https://img.shields.io/crates/v/openai-rust2)](https://crates.io/crates/openai-rust2)
+[![docs.rs](https://img.shields.io/docsrs/openai-rust2)](https://docs.rs/openai-rust2)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
+Unofficial async Rust client for the [OpenAI API](https://platform.openai.com/docs/api-reference) and **OpenAI-compatible** endpoints (xAI Grok, Ollama, OpenRouter, self-hosted gateways, …).
 
-This is an unofficial library to interact with the [Openai-API](https://platform.openai.com/docs/api-reference). The goal of this crate is to support the entire api while matching the official documentation as closely as possible.
+This is a maintained fork published as **`openai-rust2`** (original: [openai-rust](https://crates.io/crates/openai-rust)).
 
-#### Current features:
-- [x] [Listing models](https://platform.openai.com/docs/api-reference/models/list)
-- [x] [Completions](https://platform.openai.com/docs/api-reference/completions/create)
-- [x] [Chat](https://platform.openai.com/docs/api-reference/chat/create)
-- [x] [Streaming Chat](https://platform.openai.com/docs/api-reference/chat/create#chat/create-stream)
-- [x] [Edit](https://platform.openai.com/docs/api-reference/edits/create)
+## Features
+
+- [x] [List models](https://platform.openai.com/docs/api-reference/models/list)
+- [x] [Chat Completions](https://platform.openai.com/docs/api-reference/chat/create) (+ streaming)
+- [x] [Completions](https://platform.openai.com/docs/api-reference/completions/create) (legacy)
 - [x] [Embeddings](https://platform.openai.com/docs/api-reference/embeddings/create)
 - [x] [Images](https://platform.openai.com/docs/api-reference/images)
-- [ ] Audio
-- [ ] Files
-- [ ] Moderations
-- [ ] Fine-tuning
+- [x] xAI Agent Tools / Responses API (`create_responses`)
+- [x] OpenAI Responses API tools (`web_search`, `file_search`, `code_interpreter`)
+- [x] Shared connection-pooled HTTP client + application-level retry on transient failures
+- [ ] Audio / Files / Moderations / Fine-tuning
 
-### Example usage
-```rust ignore
-// Here we will use the chat completion endpoint connecting to openAI's default base URL
-use openai_rust2 as openai_rust; // since this is a fork of openai_rust
-let client = openai_rust::Client::new(&std::env::var("OPENAI_API_KEY").unwrap());
-let args = openai_rust::chat::ChatArguments::new("gpt-3.5-turbo", vec![
-    openai_rust::chat::Message {
-        role: "user".to_owned(),
-        content: "Hello GPT!".to_owned(),
-    }
-]);
-let res = client.create_chat(args).await.unwrap();
-println!("{}", res);
+## Quick start
+
+```rust,ignore
+use openai_rust2 as openai_rust;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let client = openai_rust::Client::new(&std::env::var("OPENAI_API_KEY")?);
+    let args = openai_rust::chat::ChatArguments::new(
+        "gpt-4o-mini",
+        vec![openai_rust::chat::Message {
+            role: "user".into(),
+            content: "Hello!".into(),
+        }],
+    );
+    let res = client.create_chat(args, None).await?;
+    println!("{}", res);
+    Ok(())
+}
 ```
 
-Here another example connecting to a local LLM server (Ollama's base URL)
-```rust ignore
-use openai_rust2 as openai_rust; // since this is a fork of openai_rust
+Local Ollama (or any OpenAI-compatible base URL):
+
+```rust,ignore
+use openai_rust2 as openai_rust;
+
 let client = openai_rust::Client::new_with_base_url(
-    "", // no need for an API key when connecting to a default ollama instance locally
-    "http://localhost:11434"
+    "", // many local servers ignore the key
+    "http://localhost:11434",
 );
 ```
 
-You can run this code as an example with `OPENAI_API_KEY=(your key) cargo run --example chat`.
+Run the chat example:
 
-Checkout the examples directory for more usage examples. You can find documentation on [docs.rs](https://docs.rs/openai-rust/latest/openai_rust/).
+```bash
+OPENAI_API_KEY=sk-... cargo run --example chat
+```
 
-### Projects using openai-rust
-* [openai-cli](https://github.com/LevitatingBusinessMan/openai-cli): a CLI for interacting with GPT.
-* [gpt-cli-rust](https://github.com/memochou1993/gpt-cli-rust): Another CLI.
-* [electocracy](https://github.com/marioloko/electocracy): A digital voting system.
-* [awsgpt](https://github.com/fizlip/awsgpt): Interact with the aws-cli via GPT.
+## Development
+
+```bash
+make clippy   # fmt + clippy -D warnings
+make test     # unit tests always; live tests skip without OPENAI_API_KEY
+```
+
+## Projects using this crate
+
+- [cloudllm](https://github.com/CloudLLM-ai/cloudllm) — agent toolkit (LLMSession, multi-provider clients, MentisDB)
+- [uninews](https://github.com/CloudLLM-ai/uninews) — universal news scraper (via cloudllm)
+
+## License
+
+MIT

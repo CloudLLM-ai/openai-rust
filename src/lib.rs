@@ -241,7 +241,9 @@ impl Client {
         // surfaced as a single fatal error.
         let mut attempt: u32 = 0;
         loop {
-            let result = self.send_json::<chat::ChatCompletion>(&path, &args, "create_chat").await;
+            let result = self
+                .send_json::<chat::ChatCompletion>(&path, &args, "create_chat")
+                .await;
             match result {
                 Ok(parsed) => return Ok(parsed),
                 Err(e) => {
@@ -450,11 +452,7 @@ fn truncate_for_error(text: &str, max_bytes: usize) -> String {
         while !text.is_char_boundary(cut) && cut > 0 {
             cut -= 1;
         }
-        format!(
-            "{}…[truncated, total {} bytes]",
-            &text[..cut],
-            text.len()
-        )
+        format!("{}…[truncated, total {} bytes]", &text[..cut], text.len())
     }
 }
 
@@ -508,7 +506,7 @@ mod tests {
     #[test]
     fn truncate_for_error_respects_char_boundaries() {
         let s = "ááááá";
-        let out = truncate_for_error(&s, 3);
+        let out = truncate_for_error(s, 3);
         // Re-serializing must not panic on a split codepoint.
         let _ = std::str::from_utf8(out.as_bytes()).unwrap();
     }

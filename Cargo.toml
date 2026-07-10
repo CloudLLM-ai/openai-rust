@@ -1,17 +1,15 @@
 [package]
 name = "openai-rust2"
-version = "1.7.5"
+version = "1.7.6"
 edition = "2021"
-authors = ["gubatron","LevitatingBusinessMan"]
-description = "An unofficial library for the OpenAI API"
+authors = ["gubatron", "LevitatingBusinessMan"]
+description = "An unofficial library for the OpenAI API (OpenAI-compatible endpoints, streaming chat, Responses API, images)"
 repository = "https://github.com/cloudllm-ai/openai-rust"
 keywords = ["openai", "gpt", "library", "api", "async"]
-documentation = "https://docs.rs/openai-rust"
+documentation = "https://docs.rs/openai-rust2"
 categories = ["api-bindings"]
 readme = "README.md"
 license = "MIT"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [[example]]
 name = "chat"
@@ -23,19 +21,21 @@ name = "chat_stream"
 path = "examples/chat_stream_example.rs"
 
 [dependencies]
-anyhow = "1.0.98"
-bytes = "1.4.0"
-#futures-core = "0.3.29"
-futures-util = "0.3.27"
-lazy_static = "1.4.0"
-reqwest = { features = ["json", "stream"], version = "0.12.12"}
-serde = {features = ["derive"], version = "1.0.218"}
-serde_json = "1.0.94"
+anyhow = "1.0.103"
+bytes = "1.12"
+futures-util = "0.3.32"
+lazy_static = "1.5"
+# Stay on the 0.12 line so consumers that share a `reqwest::Client` (e.g.
+# cloudllm's pooled client) keep type-compatible clients. 0.13 is a separate
+# major API surface (default TLS backend changes).
+reqwest = { version = "0.12.28", features = ["json", "stream"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
 base64 = "0.22.1"
 # Needed for the application-level retry sleep inside `create_chat`; the
 # connection-pooling retry is already handled by the shared reqwest client.
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1.52", features = ["time"] }
 
 [dev-dependencies]
-tokio = { features = ["macros", "rt-multi-thread"], version = "1.43.0"}
+tokio = { version = "1.52", features = ["macros", "rt-multi-thread"] }
 tokio-test = "0.4"
