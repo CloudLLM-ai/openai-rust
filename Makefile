@@ -12,19 +12,19 @@ fmt: ## Format sources
 	$(CARGO) fmt
 
 clippy: fmt ## Clippy with -D warnings (fmt first)
-	$(CARGO) clippy --all-targets --all-features -- -D warnings
+	$(CARGO) clippy --release --all-targets --all-features -- -D warnings
 
 check: ## Typecheck without building artifacts
-	$(CARGO) check --all-targets --all-features
+	$(CARGO) check --release --all-targets --all-features
 
 test: ## Run unit + integration tests (live tests skip without OPENAI_API_KEY)
-	$(CARGO) test --all-features
+	$(CARGO) test --release --all-features
 
 build: fmt ## Debug build
-	$(CARGO) build --all-features
+	$(CARGO) build --release --all-features
 
 doc: ## Generate rustdoc
-	$(CARGO) doc --no-deps --all-features
+	$(CARGO) doc --release --no-deps --all-features
 
 publish: clippy test ## Publish to crates.io after clippy + tests
 	$(CARGO) publish
