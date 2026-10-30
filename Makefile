@@ -1,6 +1,9 @@
 .PHONY: fmt clippy test check build doc publish clean help
 
 CARGO := /usr/bin/env cargo
+# cargo-sweep (cargo install cargo-sweep), when installed, deletes whatever an older build
+# left in target/ that this build didn't use, so only fresh release artifacts remain.
+SWEEP := $(shell command -v cargo-sweep >/dev/null 2>&1 && echo cargo sweep)
 
 default: help
 
@@ -20,8 +23,10 @@ check: ## Typecheck without building artifacts
 test: ## Run unit + integration tests (live tests skip without OPENAI_API_KEY)
 	$(CARGO) test --release --all-features
 
-build: fmt ## Debug build
+build: fmt ## Release build, then sweep stale artifacts
+	$(if $(SWEEP),$(SWEEP) --stamp)
 	$(CARGO) build --release --all-features
+	$(if $(SWEEP),$(SWEEP) --file)
 
 doc: ## Generate rustdoc
 	$(CARGO) doc --release --no-deps --all-features
