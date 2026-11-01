@@ -104,7 +104,7 @@ pub struct ChatCompletion {
 
 impl std::fmt::Display for ChatCompletion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", &self.choices[0].message.content)?;
+        write!(f, "{}", self.choices[0].message.content)?;
         Ok(())
     }
 }
