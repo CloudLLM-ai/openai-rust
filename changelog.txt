@@ -1,3 +1,11 @@
+2.0.0 - UNRELEASED
+ - BREAKING: reqwest 0.12 -> 0.13. `reqwest::Client`, `reqwest::Url` and
+   `reqwest::Response` appear in this crate's public API
+   (`Client::new_with_client`, `Client::shared_client`, ...), so callers that
+   share a client with this crate must move to reqwest 0.13 as well. reqwest
+   0.13's default TLS backend is rustls (aws-lc-rs); no source changes were
+   needed here. Tests and clippy are green.
+
 1.7.6 - 2026-07-10
  - chore(deps): refresh dependency floors (still on reqwest 0.12.x so consumers
    that share a `reqwest::Client` with this crate remain type-compatible):

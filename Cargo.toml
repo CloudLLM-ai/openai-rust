@@ -1,6 +1,6 @@
 [package]
 name = "openai-rust2"
-version = "1.7.6"
+version = "2.0.0"
 edition = "2021"
 authors = ["gubatron", "LevitatingBusinessMan"]
 description = "An unofficial library for the OpenAI API (OpenAI-compatible endpoints, streaming chat, Responses API, images)"
@@ -25,10 +25,9 @@ anyhow = "1.0.103"
 bytes = "1.12"
 futures-util = "0.3.32"
 lazy_static = "1.5"
-# Stay on the 0.12 line so consumers that share a `reqwest::Client` (e.g.
-# cloudllm's pooled client) keep type-compatible clients. 0.13 is a separate
-# major API surface (default TLS backend changes).
-reqwest = { version = "0.12.28", features = ["json", "stream"] }
+# reqwest types (`Client`, `Url`, `Response`) are part of this crate's public
+# API, so the reqwest major is part of ours: 2.x = reqwest 0.13.
+reqwest = { version = "0.13.5", features = ["json", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
 base64 = "0.22.1"
