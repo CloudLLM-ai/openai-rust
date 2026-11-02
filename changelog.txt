@@ -1,4 +1,4 @@
-2.0.0 - UNRELEASED
+2.0.0 - 2026-11-02
  - BREAKING: reqwest 0.12 -> 0.13. `reqwest::Client`, `reqwest::Url` and
    `reqwest::Response` appear in this crate's public API
    (`Client::new_with_client`, `Client::shared_client`, ...), so callers that
